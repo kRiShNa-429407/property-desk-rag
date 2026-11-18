@@ -1,0 +1,7 @@
+{
+  "image": "property-desk:assignment",
+  "container_id": "c1587342fdf825851a756df6c3144401a32747b4190b6976e48c810f4427a9f2",
+  "health": "passed",
+  "runtime_check": "Passages: 306\nSources: ['DarGlobal', 'Wasalt']\nImage contains .env: False\nKey configured: True\nContainer user: 1000",
+  "local_url": "http://localhost:18501"
+}

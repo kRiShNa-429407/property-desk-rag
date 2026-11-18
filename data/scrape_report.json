@@ -1,0 +1,48 @@
+[
+  {
+    "url": "https://darglobal.co.uk/",
+    "status": "failed",
+    "reason": "Source returned an access-control page"
+  },
+  {
+    "url": "https://darglobal.co.uk/about",
+    "status": "failed",
+    "reason": "Source returned an access-control page"
+  },
+  {
+    "url": "https://darglobal.co.uk/landing-page/aida",
+    "status": "failed",
+    "reason": "Source returned an access-control page"
+  },
+  {
+    "source": "DarGlobal",
+    "status": "stopped",
+    "reason": "Three consecutive access restrictions; stopping requests to this source."
+  },
+  {
+    "source": "DarGlobal",
+    "status": "finished",
+    "attempted": 3,
+    "collected": 0,
+    "limit_reached": false
+  },
+  {
+    "source": "Wasalt",
+    "status": "finished",
+    "attempted": 50,
+    "collected": 50,
+    "limit_reached": true
+  },
+  {
+    "source": "DarGlobal",
+    "url": "https://cdn.darglobal.co.uk/Aida_Phase_01_EN_8e90a16291.pdf",
+    "status": "pdf_collected",
+    "text_pages": 53
+  },
+  {
+    "source": "DarGlobal",
+    "url": "https://cdn.darglobal.co.uk/DG_AIDA_Trump_Brochure_EN_6a6b1c7469.pdf",
+    "status": "pdf_collected",
+    "text_pages": 32
+  }
+]

@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+.streamlit/secrets.toml
+__pycache__
+.venv
+tests
+node_modules
+dist
+.tools
+*.log

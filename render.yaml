@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: property-desk
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: OPENROUTER_API_KEY
+        sync: false
