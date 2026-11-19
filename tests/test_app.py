@@ -33,6 +33,16 @@ class RetrievalTests(unittest.TestCase):
     def test_unknown_terms_do_not_match(self):
         self.assertEqual(self.retriever.search('quantum neutrino spectroscopy'), [])
 
+    def test_company_gdv_question_retrieves_corporate_figure(self):
+        for question in ['what is the GROSS DEVELOPMENT VALUE of DarGlobal?',
+                         'What is DarGlobal GDV?', 'What is Dar Global gross development value?']:
+            with self.subTest(question=question):
+                hits = self.retriever.search(question)
+                self.assertTrue(hits)
+                self.assertIn('US$23 billion', hits[0].text)
+                self.assertIn('26 October 2026', hits[0].text)
+                self.assertIn('/press/', hits[0].url)
+
     def test_chunk_overlap_and_source_metadata(self):
         with TemporaryDirectory() as directory:
             path = Path(directory) / 'knowledge.txt'

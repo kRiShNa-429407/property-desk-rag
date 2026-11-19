@@ -165,8 +165,9 @@ class Crawler:
 def save_pages(pages, path):
     blocks = []
     for page in pages:
+        method = f'\nMethod: {page["method"]}' if page.get('method') else ''
         blocks.append(f'Source: {page["source"]}\nTitle: {page["title"]}\nURL: {page["url"]}\n'
-                      f'Collected: {page["collected"]}\n\n{page["text"]}')
+                      f'Collected: {page["collected"]}{method}\n\n{page["text"]}')
     temporary = path.with_suffix('.tmp')
     temporary.write_text(SEPARATOR.join(blocks) + '\n', encoding='utf-8')
     temporary.replace(path)
@@ -183,7 +184,8 @@ def read_saved_pages(path):
         fields = dict(line.split(': ', 1) for line in metadata.splitlines() if ': ' in line)
         if fields.get('Source') and fields.get('URL'):
             pages.append({'source': fields['Source'], 'title': fields.get('Title', ''),
-                          'url': fields['URL'], 'collected': fields.get('Collected', 'unknown'), 'text': text})
+                          'url': fields['URL'], 'collected': fields.get('Collected', 'unknown'),
+                          'method': fields.get('Method', ''), 'text': text})
     return pages
 
 
@@ -236,9 +238,16 @@ def main():
         pages.extend(collect_brochures(crawler, report))
     data = ROOT / 'data'
     data.mkdir(exist_ok=True)
+    # Keep verified company updates while their HTML source is still blocked.
+    # A newly collected copy of the same URL replaces the previous summary.
+    new_urls = {page['url'] for page in pages}
+    previous = read_saved_pages(data / 'knowledge.txt')
+    updates = [page for page in previous if page.get('method') == 'Verified public-page summary'
+               and page['url'] not in new_urls]
     (data / 'scrape_report.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
     if pages:
         missing = set(SITES) - {page['source'] for page in pages}
+        pages.extend(page for page in updates if page['source'] not in missing)
         output = data / ('knowledge.partial.txt' if missing else 'knowledge.txt')
         save_pages(pages, output)
         print(f'Saved {len(pages)} pages to {output.name}.')

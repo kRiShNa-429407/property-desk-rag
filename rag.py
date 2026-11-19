@@ -44,6 +44,7 @@ def load_passages(path=DATA_FILE, chunk_size=180, overlap=35):
 
 def normalize(text):
     text = text.lower().replace('dar global', 'darglobal')
+    text = re.sub(r'\bgdv\b', 'gross development value', text)
     for plural, singular in [('apartments', 'apartment'), ('villas', 'villa'),
                              ('bedrooms', 'bedroom'), ('prices', 'price')]:
         text = re.sub(r'\b' + plural + r'\b', singular, text)

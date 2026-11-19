@@ -1,0 +1,7 @@
+{
+  "question": "what is the GROSS DEVELOPMENT VALUE of DarGlobal?",
+  "answer": "DarGlobal\u2019s Gross Development Value (GDV) is reported as **US$23 billion** for its global portfolio, as of the announcement published **26 October 2026** [1]. This is a company-wide portfolio figure, not the value of an individual project [1].",
+  "model": "baidu/ernie-5.5-flash-preview:free",
+  "status": "passed",
+  "source": "https://darglobal.co.uk/press/dar-global-capital-partners-targets-high-value-real-estate-opportunities-dubai"
+}
