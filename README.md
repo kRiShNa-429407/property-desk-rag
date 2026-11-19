@@ -23,6 +23,8 @@ The model is fixed to `openrouter/free`. Both input and output provider price li
 
 ## Collect the data
 
+For the complete resumable HTML archive, including every discoverable listing and Arabic pages, see [CRAWLING.md](CRAWLING.md). This long-running collection writes full HTML to `data/html/` and extracted text to `data/full_scraped_text.txt`.
+
 ```bash
 python scrape.py
 python scrape.py --max-pages 0

@@ -10,3 +10,7 @@ __pycache__/
 .sites-local/
 .tools/
 *.log
+data/html/
+data/full_scraped_text.txt
+data/full_crawl_urls.txt
+data/full_crawl_report.json

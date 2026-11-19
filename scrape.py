@@ -48,11 +48,13 @@ def clean_url(url, host):
 
 def extract_page(html):
     soup = BeautifulSoup(html, 'html.parser')
-    if soup.select_one('iframe#main-iframe') or any(marker in html.lower() for marker in
-            ['_incapsula_resource', 'cf-chl-', 'verify you are human', 'access denied']):
+    security_marker = soup.select_one('iframe#main-iframe') or any(marker in html.lower() for marker in
+            ['_incapsula_resource', 'cf-chl-', 'verify you are human', 'access denied'])
+    # Security scripts can also be present on successfully rendered public pages.
+    if security_marker and len(soup.get_text(' ', strip=True).split()) < 80:
         raise ValueError('Source returned an access-control page')
     meta = soup.find('meta', attrs={'name': lambda value: value and value.lower() == 'robots'})
-    if meta and any(rule in meta.get('content', '').lower() for rule in ['noai', 'noindex', 'nosnippet']):
+    if meta and any(rule in meta.get('content', '').lower() for rule in ['noai', 'nosnippet']):
         raise ValueError('Page metadata restricts collection')
     title = soup.title.get_text(' ', strip=True) if soup.title else 'Untitled page'
     links = [link['href'] for link in soup.select('a[href]')]
@@ -226,10 +228,16 @@ def collect_brochures(crawler, report):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--max-pages', type=int, default=100, help='Maximum attempted pages per site; 0 means all discovered pages.')
+    parser.add_argument('--max-pages', type=int, default=None, help='Maximum attempted pages per site; 0 means unlimited. Defaults to 100, or unlimited with --full-html.')
+    parser.add_argument('--full-html', action='store_true', help='Archive full HTML from all discoverable public pages, with resumable progress.')
     args = parser.parse_args()
-    if args.max_pages < 0:
+    if args.max_pages is not None and args.max_pages < 0:
         parser.error('--max-pages cannot be negative')
+    if args.full_html:
+        from crawl_archive import main as archive_main
+        return archive_main(['--max-pages', str(args.max_pages or 0)])
+    if args.max_pages is None:
+        args.max_pages = 100
     report, pages = [], []
     crawler = Crawler()
     for name, seeds in SITES.items():

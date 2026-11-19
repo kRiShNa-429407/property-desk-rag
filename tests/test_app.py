@@ -99,6 +99,11 @@ class ScraperTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'access-control'):
             extract_page('<html><script src="/_Incapsula_Resource"></script></html>')
 
+    def test_security_script_does_not_hide_a_real_rendered_page(self):
+        html = '<html><script src="/_Incapsula_Resource"></script><main>' + 'Actual public company information. ' * 30 + '</main></html>'
+        _, text, _ = extract_page(html)
+        self.assertIn('Actual public company information', text)
+
     def test_navigation_is_removed_but_main_text_remains(self):
         html = '<html><title>Project</title><nav>Navigation</nav><main>' + 'Public property description. ' * 20 + '</main></html>'
         title, text, _ = extract_page(html)
