@@ -91,6 +91,7 @@ if question:
     with st.chat_message('user'):
         st.write(question)
     scroll_to_latest()
+    print('PropertyDesk: starting retrieval', flush=True)
     history = st.session_state.messages[-6:]
     search_question = question
     if re.search(r'\b(it|they|those|these|them|that)\b', question, re.I):
@@ -98,6 +99,7 @@ if question:
         search_question = f'{previous} {question}'
     try:
         passages = retriever.search(search_question)
+        print('PropertyDesk: retrieval completed', flush=True)
     except PyMongoError:
         st.error('Property search is temporarily unavailable. Please try again shortly.')
         st.stop()

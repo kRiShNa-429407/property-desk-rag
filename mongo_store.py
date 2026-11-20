@@ -108,10 +108,12 @@ def replace_documents(collection, documents, search_indexes=True, allow_empty=Fa
 
 @lru_cache(maxsize=4)
 def _connect(uri, database_name, initialize, timeout_ms=15000):
+    print('PropertyDesk: creating database client', flush=True)
     client = MongoClient(uri, serverSelectionTimeoutMS=5000, connectTimeoutMS=5000,
                          timeoutMS=timeout_ms, maxPoolSize=20, maxIdleTimeMS=60000,
                          waitQueueTimeoutMS=5000, appname='Property Desk')
     collection = client[database_name]['wasalt']
+    print('PropertyDesk: database client created', flush=True)
     seed = ROOT / 'data' / 'wasalt-clean' / 'records.jsonl.gz'
     with _seed_lock:
         if initialize and collection.estimated_document_count() == 0 and seed.is_file():

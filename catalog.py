@@ -25,10 +25,12 @@ def query_catalog(collection, question, limit=5):
     if re.search(r'\b(account|upload|fees?|contact|support|register|list my|post my|sell my|how do i)\b', text):
         return None
     database = collection
+    print('PropertyDesk: checking catalog', flush=True)
     if database.estimated_document_count() == 0:
         raise DatabaseNotReady('Wasalt data must be imported before serving property searches.')
     cities = [value for value in database.distinct('city') if value]
     districts = [value for value in database.distinct('district') if value]
+    print('PropertyDesk: catalog locations loaded', flush=True)
     def location(values):
         matches = [(match.start(), len(value), value) for value in values
                    for match in re.finditer(r'(?<!\w)' + re.escape(value.lower()) + r'(?!\w)', text)]
