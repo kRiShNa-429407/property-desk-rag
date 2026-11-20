@@ -29,9 +29,9 @@ def query_catalog(collection, question, limit=5):
     if database.estimated_document_count() == 0:
         raise DatabaseNotReady('Wasalt data must be imported before serving property searches.')
     print('PropertyDesk: catalog count checked', flush=True)
-    cities = [value for value in database.distinct('city') if value]
+    cities = [value for value in database.distinct('city', collation=COLLATION) if value]
     print('PropertyDesk: catalog cities loaded', flush=True)
-    districts = [value for value in database.distinct('district') if value]
+    districts = [value for value in database.distinct('district', collation=COLLATION) if value]
     print('PropertyDesk: catalog locations loaded', flush=True)
     def location(values):
         matches = [(match.start(), len(value), value) for value in values

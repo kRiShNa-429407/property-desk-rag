@@ -73,6 +73,7 @@ def create_indexes(collection):
     collection.create_indexes([
         IndexModel([('city', 1), ('kind', 1), ('purpose', 1)], collation=COLLATION),
         IndexModel([('city', 1), ('kind', 1), ('price', 1), ('bedrooms', 1)], collation=COLLATION),
+        IndexModel([('district', 1)], collation=COLLATION),
         IndexModel([('title', 'text'), ('city', 'text'), ('district', 'text'), ('kind', 'text')], name='wasalt_search_text'),
     ])
 
