@@ -1,6 +1,6 @@
 # Deployment checks
 
-Verified on 20 November 2026. No application deployment was performed.
+Deployed and verified on 20 November 2026: https://property-desk-0y6t.onrender.com
 
 | Check | Result |
 |---|---|
@@ -17,8 +17,9 @@ Verified on 20 November 2026. No application deployment was performed.
 | Concurrent Atlas searches | Eight requests with four workers; mean 1.41 seconds, slowest 1.86 seconds from this computer. Render timings remain unverified. |
 | Automated tests | 63 passed against isolated local test databases. |
 | Render blueprint | Validated against Render's public schema; configured for manual deployment. Live Render settings have not been changed. |
-| Docker | Compose structure checked. Image build not run because Docker is unavailable on this computer. |
+| Docker | Image successfully built and deployed by Render. |
 | Render idle wake-up | Still requires testing after an authorized deployment. Free services sleep after 15 minutes without inbound traffic. |
+| Public browser checks | Passed: Riyadh count 30,181; AIDA answer Muscat, Oman; New chat clears messages. Atlas network access from Render verified. |
 
 Run read-only readiness checks before deploying:
 

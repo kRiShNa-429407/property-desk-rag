@@ -2,9 +2,9 @@
 
 A Streamlit chatbot for DarGlobal and Wasalt. Wasalt listings live in MongoDB; company and service questions use local page text and a free OpenRouter model.
 
-Live app: https://property-desk.onrender.com
+Live app: https://property-desk-0y6t.onrender.com
 
-Recent local changes have not been deployed.
+Deployed on Render Free with MongoDB Atlas. Public database answers, model responses and chat reset have been verified.
 
 ## Run
 
