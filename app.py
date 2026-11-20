@@ -1,4 +1,5 @@
 import os
+import faulthandler
 import re
 from pathlib import Path
 
@@ -98,7 +99,9 @@ if question:
         previous = next((item['content'] for item in reversed(history) if item['role'] == 'user'), '')
         search_question = f'{previous} {question}'
     try:
+        faulthandler.dump_traceback_later(25)
         passages = retriever.search(search_question)
+        faulthandler.cancel_dump_traceback_later()
         print('PropertyDesk: retrieval completed', flush=True)
     except PyMongoError:
         st.error('Property search is temporarily unavailable. Please try again shortly.')

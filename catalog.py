@@ -28,11 +28,14 @@ def query_catalog(collection, question, limit=5):
     print('PropertyDesk: checking catalog', flush=True)
     if database.estimated_document_count() == 0:
         raise DatabaseNotReady('Wasalt data must be imported before serving property searches.')
+    print('PropertyDesk: catalog count checked', flush=True)
     cities = [value for value in database.distinct('city') if value]
+    print('PropertyDesk: catalog cities loaded', flush=True)
     districts = [value for value in database.distinct('district') if value]
     print('PropertyDesk: catalog locations loaded', flush=True)
     def location(values):
         matches = [(match.start(), len(value), value) for value in values
+                   if value.lower() in text
                    for match in re.finditer(r'(?<!\w)' + re.escape(value.lower()) + r'(?!\w)', text)]
         # Keep the longest overlapping name, e.g. Riyadh Al Khabra rather than Riyadh.
         matches = [item for item in matches if not any(other[0] <= item[0] and
