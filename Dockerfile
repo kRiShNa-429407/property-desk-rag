@@ -7,7 +7,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN useradd --create-home --uid 1000 appuser
 
-COPY --chown=appuser:appuser app.py rag.py llm.py scrape.py ./
+COPY --chown=appuser:appuser app.py rag.py wasalt.py catalog.py mongo_store.py preflight.py llm.py prompts.py styles.css chat_scroll.js ./
+COPY --chown=appuser:appuser .streamlit/config.toml ./.streamlit/config.toml
 COPY --chown=appuser:appuser data/ ./data/
 USER appuser
 

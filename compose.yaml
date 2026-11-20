@@ -4,5 +4,24 @@ services:
     ports:
       - "8501:8501"
     environment:
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      MONGODB_URI: mongodb://mongo:27017
+      MONGODB_DATABASE: property_desk
+      APP_ENV: development
+      MONGODB_AUTO_SEED: "true"
+    env_file: .env
+    depends_on:
+      mongo:
+        condition: service_healthy
     restart: unless-stopped
+  mongo:
+    image: mongo:8.0
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+volumes:
+  mongo_data:

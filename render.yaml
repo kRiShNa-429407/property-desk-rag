@@ -5,6 +5,25 @@ services:
     plan: free
     dockerfilePath: ./Dockerfile
     healthCheckPath: /_stcore/health
+    autoDeployTrigger: "off"
     envVars:
       - key: OPENROUTER_API_KEY
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DATABASE
+        value: property_desk
+      - key: APP_ENV
+        value: production
+      - key: MONGODB_AUTO_SEED
+        value: "false"
+      - key: PORT
+        value: "8501"
+      - key: OPENROUTER_API_KEY_1
+        sync: false
+      - key: OPENROUTER_API_KEY_2
+        sync: false
+      - key: OPENROUTER_API_KEY_3
+        sync: false
+      - key: OPENROUTER_API_KEY_4
         sync: false

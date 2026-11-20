@@ -1,0 +1,28 @@
+{
+  "json_files": 3784,
+  "listing_files": 3782,
+  "metadata_files": 2,
+  "input_records": 99087,
+  "duplicate_entries": 25840,
+  "exact_duplicates": 24701,
+  "history_records": 2278,
+  "nested_records": 121,
+  "input_bytes": 377273489,
+  "unique_records": 73247,
+  "source_manifest_sha256": "20a934c8a39b2dbf110fa9edb28c7270b8c2cdbc22e60ef6f4080c04b5ff1326",
+  "artifacts": {
+    "records.jsonl.gz": {
+      "bytes": 23789817,
+      "sha256": "62aeb965863fb75c1aa90836b5a5302be9422d6e0053e275787006fd6f3541f4"
+    },
+    "history.jsonl.gz": {
+      "bytes": 1089004,
+      "sha256": "d38425d596d1a297e421b665b1394135715cef9bc34e46c974d66087eecae91c"
+    },
+    "metadata.jsonl.gz": {
+      "bytes": 266804,
+      "sha256": "0803e2b1db902ff8c544fb2eb1443d5be0e21b58a91b616c0a7c8d616c81dfe5"
+    }
+  },
+  "policy": "Originals unchanged; newest scalar values win; missing keys and unique list values merge; distinct conflicting versions retained in history."
+}

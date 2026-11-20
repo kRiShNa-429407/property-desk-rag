@@ -1,4 +1,4 @@
-"""Resumable, same-site HTML collection. Run with: python crawl_archive.py"""
+"""Resumable HTML collection for DarGlobal and Wasalt."""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import shutil
 import sqlite3
+import sys
 import threading
 import time
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
@@ -32,7 +33,7 @@ EXPORT_LOCK = threading.Lock()
 
 
 class BrowserCrawler(Crawler):
-    """Use a normal browser for public HTML; robots and sitemaps still use HTTP."""
+    """Fetch JavaScript pages in a browser."""
     def __init__(self):
         super().__init__()
         from playwright.sync_api import sync_playwright
@@ -227,7 +228,6 @@ class HtmlArchive:
     def collect_site(self, site, max_pages=0, browser=False):
         host, paths = SITES[site]
         self.discover(site, [f'https://{host}{path}' for path in paths])
-        # Create the archive immediately; blocked responses carry explicit outcome labels.
         (self.output / f'{site.lower()}_html.txt').touch(exist_ok=True)
         crawler = BrowserCrawler() if browser else Crawler(delay=1)
         if browser:
@@ -267,7 +267,7 @@ class HtmlArchive:
                 if 'text/html' not in response.headers.get('Content-Type', '').lower():
                     self.mark(url, 'not_html')
                     continue
-                # Discover links from the original response, before content cleanup.
+                # Keep links before cleaning the page text.
                 soup = BeautifulSoup(response.text, 'html.parser')
                 self.discover(site, [urljoin(response.url, link['href']) for link in soup.select('a[href]')])
                 try:
@@ -297,7 +297,6 @@ class HtmlArchive:
             except (requests.RequestException, ValueError) as error:
                 self.mark(url, 'failed', str(error))
             except Exception as error:
-                # Browser timeouts are recorded without losing the remaining queue.
                 if not browser:
                     raise
                 self.mark(url, 'failed', str(error))
@@ -334,6 +333,9 @@ def acquire_lock(path):
 
 
 def main(argv=None):
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8', errors='backslashreplace')
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--max-pages', type=int, default=0, help='Attempt limit per site for a short run. Default 0 means unlimited.')
     parser.add_argument('--retry-failed', action='store_true', help='Retry previously failed or blocked page requests.')

@@ -1,38 +1,70 @@
 # Property Desk
 
-A small RAG chatbot for DarGlobal and Wasalt. Scraped page text lives in `data/knowledge.txt`. Python splits it into passages, TF-IDF retrieves relevant passages, and a free model on OpenRouter answers through a Streamlit chat interface.
+A Streamlit chatbot for DarGlobal and Wasalt. Wasalt listings live in MongoDB; company and service questions use local page text and a free OpenRouter model.
 
-No vector database, paid embeddings, separate backend or JavaScript build is needed.
+Live app: https://property-desk.onrender.com
 
-## Run locally
+Recent local changes have not been deployed.
+
+## Run
+
+Start MongoDB, then run:
 
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Set your key in `.env` beside `app.py` before chatting:
+Add connection settings to `.env` beside `app.py`:
 
 ```dotenv
-OPENROUTER_API_KEY=your_openrouter_key
+OPENROUTER_API_KEY=your_key
+MONGODB_URI=mongodb://127.0.0.1:27017
+MONGODB_DATABASE=property_desk
 ```
 
-Open http://localhost:8501. The app reads `.env` automatically. The key stays on the server; visitors only see the chat. The file is excluded from Git and Docker images. An existing `OPENROUTER_API_KEY` environment variable takes precedence, including when Docker Compose injects it.
+Open http://localhost:8501. Keys and database credentials stay on the server.
 
-The model is fixed to `openrouter/free`. Both input and output provider price limits are zero, and there are no paid model fallbacks. Local retrieval is free. Free models have availability and rate limits. A configured key is required for AI answers.
+For key rotation, use `OPENROUTER_API_KEY_1` through `OPENROUTER_API_KEY_4`. Blank and duplicate keys are ignored. A rate-limited request tries another key once per key. Limited keys follow a numeric Retry-After duration, or a default cooldown of 60 seconds (one hour for daily quotas). Keys on the same account share its quota.
 
-## Collect the data
+Chat uses `inclusionai/ling-3.2-flash:free` with free NVIDIA and Gemma fallbacks. Input and output price limits are zero. Property counts and filtered listing tables come directly from MongoDB and do not consume model requests.
 
-For the complete resumable HTML archive, including every discoverable listing and Arabic pages, see [CRAWLING.md](CRAWLING.md). This long-running collection writes full HTML to `data/html/` and extracted text to `data/full_scraped_text.txt`.
+## Wasalt data
+
+Original JSON files stay in `data/wasalt-export/`. Cleaning keeps every field, recovers nested listing arrays, merges complementary details, and keeps distinct conflicting versions in history. Explicit null, false and zero values remain meaningful.
 
 ```bash
-python scrape.py
-python scrape.py --max-pages 0
+python clean_wasalt.py data/wasalt-export --output data/wasalt-clean
+python wasalt.py data/wasalt-clean
 ```
 
-The default is 100 attempted HTML pages per site. Use `0` to visit all discovered eligible HTML pages. The scraper checks robots.txt, follows same-domain links and sitemaps, skips forms, deduplicates pages, and pauses between requests. If DarGlobal HTML pages are blocked, it extracts text from two official, publicly downloadable PDF brochures. It does not collect authenticated content or bypass challenges. URL queries are excluded, so paginated, JavaScript-only and unlinked pages are not guaranteed to be collected.
+The cleaned outputs are:
 
-**Collection status:** the bundled text file contains 50 Wasalt HTML pages and 85 text-bearing pages from two official DarGlobal brochures, plus a clearly labelled verified summary of DarGlobal's corporate update published 26 October 2026. That update fills a company-wide coverage gap: the brochures did not contain the group's gross development value. Its source HTML remains blocked to direct requests. This is a scoped public-data collection, not a complete scrape or a live inventory. `data/collection_notes.md` records provenance; `data/scrape_report.json` records attempted pages and whether the page limit was reached. Blocked sources retain their previous entries while successful sources are refreshed. A collection missing either source exits with status 1 and also saves newly collected pages separately to `knowledge.partial.txt`.
+- `records.jsonl.gz`: one merged record per listing or project ID, with source filenames.
+- `history.jsonl.gz`: distinct original versions where duplicate records differed.
+- `metadata.jsonl.gz`: city catalogs, pagination and response metadata.
+- `report.json`: counts, cleaning rules and checksums.
+
+CLI imports validate the complete input and sync in place, avoiding a second full collection copy. Run imports while the chatbot is offline. Stale IDs are removed only after every batch succeeds; an interrupted import can be retried. The database contains `wasalt`, `wasalt_history` and `wasalt_metadata`. Every listing retains its full original fields under `raw`, alongside searchable fields for city, district, property type, purpose, price and bedrooms.
+
+The existing query rules filter and aggregate in MongoDB. Missing prices remain unknown and are excluded from averages. Counts exclude project cards and describe the imported sales catalog; the live website total and availability can differ. Production auto-seeding is disabled: import the database before deployment. Docker Compose enables seeding only for local development.
+
+MongoDB Community is running locally with its files in `.tools/mongodb/`. After a restart, start MongoDB before Streamlit. Docker Compose below starts both services together.
+
+## Other data
+
+- `data/darglobal.json` supplies DarGlobal knowledge. It accepts a JSON array or an object containing a `pages` array with URL, title and text.
+- `data/knowledge.txt` supplies general Wasalt service pages. Older DarGlobal text records are skipped while its JSON is present.
+- `data/full_scraped_text.txt`, `data/html/` and `data/full_crawl_report.json` belong to the separate ongoing crawl.
+
+To resume that crawl:
+
+```bash
+pip install -r requirements-crawl.txt
+python scrape.py
+```
+
+Keep `.tools/full_crawl.sqlite3` while the crawler is running. It uses SQLite only for crawl checkpoints, independently of the chatbot's MongoDB data.
 
 ## Docker
 
@@ -40,25 +72,18 @@ The default is 100 attempted HTML pages per site. Use `0` to visit all discovere
 docker compose up --build -d
 ```
 
-Open http://localhost:8501. Optionally copy `.env.example` to `.env` and set the key before starting. Secrets are excluded from the image. The app runs as a non-root user and has a health check.
+Compose runs the chatbot and MongoDB with a persistent database volume. The image includes the cleaned Wasalt seed files; raw exports, crawl archives and secrets are excluded. The MongoDB port is internal to Compose. For a later hosted deployment, set MONGODB_URI to a reachable database connection. No hosting changes have been published.
 
-## Files
+Before hosting, run `python preflight.py --production --model`. This checks the connection, record count, indexes, storage headroom and a free-model response without deploying. See [DEPLOYMENT_CHECKS.md](DEPLOYMENT_CHECKS.md) for verified checks and remaining hosting tests.
 
-- `app.py`: Streamlit chat and source display.
-- `scrape.py`: public-page crawler and text export.
-- `rag.py`: text loading, chunking and retrieval.
-- `llm.py`: free-only OpenRouter requests.
-- `data/knowledge.txt`: the knowledge used by the chatbot.
-- `tests/test_app.py`: retrieval, model request and Streamlit checks.
+## Tests
 
-Run checks with `python -m unittest discover -s tests -v`.
+With local MongoDB running:
 
-With the configured free OpenRouter key, run `python tests/live_check.py` to check real model responses. Results are saved without credentials in `tests/live_results.json`. Container verification results are in `tests/docker_results.json`.
+```bash
+python -m unittest discover -s tests -v
+```
 
-## Free deployment
+Database tests use disposable databases named property_desk_test_* and leave the application database untouched. MONGODB_TEST_URI can override the test server.
 
-`render.yaml` configures a Docker web service on Render's Free plan. Set `OPENROUTER_API_KEY` as a runtime secret. Visitors never enter API keys. Free instances sleep after inactivity and may take about a minute to wake up. This project does not provision paid compute, paid storage or a database.
-
-A temporary Cloudflare Quick Tunnel can expose the running Streamlit process for testing. That URL is temporary and stops working when the host or tunnel stops; it is not an always-on cloud deployment.
-
-The current test URL and verification details are in [DEPLOYMENT.md](DEPLOYMENT.md).
+The code is split between app.py (interface), rag.py (retrieval), llm.py (model requests), prompts.py (answer style), catalog.py (question rules and MongoDB queries), mongo_store.py (connections and imports), clean_wasalt.py (lossless cleaning) and wasalt.py (listing conversion and loading).
