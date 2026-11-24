@@ -27,7 +27,9 @@ Open http://localhost:8501. Keys and database credentials stay on the server.
 
 For key rotation, use `OPENROUTER_API_KEY_1` through `OPENROUTER_API_KEY_4`. Blank and duplicate keys are ignored. A rate-limited request tries another key once per key. Limited keys follow a numeric Retry-After duration, or a default cooldown of 60 seconds (one hour for daily quotas). Keys on the same account share its quota.
 
-Chat uses `inclusionai/ling-3.2-flash:free` with free NVIDIA and Gemma fallbacks. Input and output price limits are zero. Property counts and filtered listing tables come directly from MongoDB and do not consume model requests.
+Chat uses `inclusionai/ling-3.2-flash:free` with free NVIDIA and Gemma fallbacks. Input and output price limits are zero. For Wasalt questions, a structured model response interprets the intent and filters; MongoDB calculates the counts, averages and listing results. This interpretation uses a free-model request. No model-generated MongoDB commands are executed.
+
+The interpreter uses schema-capable free models: `baidu/ernie-5.5-flash-preview:free`, `nvidia/nemotron-3.5-super-vl:free` and `inclusionai/ling-3.2-flash:free`. Output must pass local validation even when the provider advertises schema support. All model requests use a priority-ordered fallback list and server-side keys.
 
 ## Wasalt data
 
@@ -47,7 +49,11 @@ The cleaned outputs are:
 
 CLI imports validate the complete input and sync in place, avoiding a second full collection copy. Run imports while the chatbot is offline. Stale IDs are removed only after every batch succeeds; an interrupted import can be retried. The database contains `wasalt`, `wasalt_history` and `wasalt_metadata`. Every listing retains its full original fields under `raw`, alongside searchable fields for city, district, property type, purpose, price and bedrooms.
 
-The existing query rules filter and aggregate in MongoDB. Missing prices remain unknown and are excluded from averages. Counts exclude project cards and describe the imported sales catalog; the live website total and availability can differ. Production auto-seeding is disabled: import the database before deployment. Docker Compose enables seeding only for local development.
+Search interpretation supports city, district, property type, sale/rent purpose, price, bedroom ranges, sorting and city count comparisons. Validated filters run through the same MongoDB executor as the basic query rules. Without a model key, the limited basic rules remain available; they are not a substitute for natural-language interpretation.
+
+Follow-up searches carry the previous validated filters within that browser session. Missing facts, ambiguous requests, unsupported filters and unavailable models receive clear replies without guessed answers. Area, amenity, proximity and live-availability filters are not currently supported. Malformed model output cannot run a query.
+
+Missing prices remain unknown and are excluded from averages. Unusually low SAR sale prices for apartments, villas and buildings are flagged for agent confirmation and excluded from averages without changing the original data. Counts exclude project cards and describe the imported catalog; the live website total and availability can differ. Production auto-seeding is disabled: import the database before deployment. Docker Compose enables seeding only for local development.
 
 MongoDB Community is running locally with its files in `.tools/mongodb/`. After a restart, start MongoDB before Streamlit. Docker Compose below starts both services together.
 

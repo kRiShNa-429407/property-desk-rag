@@ -87,11 +87,12 @@ class ModelTests(unittest.TestCase):
     def test_request_is_free_and_grounded(self):
         answer, model = ask('What is DarGlobal?', self.passages, 'test-key', session=self.client)
         request = self.client.post.call_args.kwargs
-        self.assertEqual(request['json']['model'], 'inclusionai/ling-3.2-flash:free')
+        self.assertNotIn('model', request['json'])
+        self.assertEqual(request['json']['route'], 'fallback')
         self.assertFalse(request['json']['reasoning']['enabled'])
         self.assertEqual(request['json']['provider']['max_price'], {'prompt': 0, 'completion': 0})
         self.assertEqual(request['json']['models'],
-                         ['nvidia/nemotron-3.5-lightning:free', 'google/gemma-4-31b-it:free'])
+                         ['inclusionai/ling-3.2-flash:free', 'nvidia/nemotron-3.5-lightning:free', 'google/gemma-4-31b-it:free'])
         self.assertTrue(all(model.endswith(':free') for model in request['json']['models']))
         context = request['json']['messages'][0]['content'].split('Current retrieved records:\n', 1)[1]
         self.assertEqual(self.passages[0].text, json.loads(context)[0]['text'])
@@ -213,7 +214,8 @@ class StreamlitTests(unittest.TestCase):
 
     def test_mongo_connection_error_has_a_readable_message(self):
         from pymongo.errors import ServerSelectionTimeoutError
-        with patch('rag.get_collection', side_effect=ServerSelectionTimeoutError('unavailable')):
+        with patch('rag.get_collection', side_effect=ServerSelectionTimeoutError('unavailable')), \
+                patch('dotenv.dotenv_values', return_value={}):
             app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'app.py')).run(timeout=30)
             app.chat_input[0].set_value('How many properties in Riyadh?').run(timeout=30)
             self.assertEqual(len(app.exception), 0)

@@ -1,5 +1,4 @@
 import os
-import re
 from pathlib import Path
 
 import streamlit as st
@@ -9,6 +8,7 @@ from pymongo.errors import PyMongoError
 from llm import ChatError, ask, clean_answer
 from prompts import NO_MATCH_REPLY
 from rag import Retriever, knowledge_files, load_passages
+from search_questions import resolve_search_question
 
 st.set_page_config(page_title='Property Desk', page_icon='🏠', layout='centered')
 st.markdown(f'<style>{Path(__file__).with_name("styles.css").read_text(encoding="utf-8")}</style>', unsafe_allow_html=True)
@@ -26,6 +26,7 @@ def build_retriever(file_versions):
 
 
 def show_sources(sources):
+    sources = [item for item in sources if item.get('url')]
     if not sources:
         return
     with st.expander('Sources'):
@@ -93,13 +94,12 @@ if question:
     scroll_to_latest()
     print('PropertyDesk: starting retrieval', flush=True)
     history = st.session_state.messages[-6:]
-    search_question = question
-    if re.search(r'\b(it|they|those|these|them|that)\b', question, re.I):
-        previous = next((item['content'] for item in reversed(history) if item['role'] == 'user'), '')
-        search_question = f'{previous} {question}'
+    search_question = resolve_search_question(question, history)
+    previous_search = next((item.get('search_plan') for item in reversed(history) if item['role'] == 'user'), None)
     try:
         with st.spinner('Searching...'):
-            passages = retriever.search(search_question)
+            passages = retriever.search(search_question, api_keys=api_keys, history=history,
+                                        original_question=question, previous_search=previous_search)
         print('PropertyDesk: retrieval completed', flush=True)
     except PyMongoError as error:
         print(f'PropertyDesk: database request failed ({type(error).__name__})', flush=True)
@@ -116,7 +116,8 @@ if question:
             sources = [vars(item) for item in passages]
             show_sources(sources)
             st.session_state.messages.extend([
-                {'role': 'user', 'content': question},
+                {'role': 'user', 'content': question, 'search_question': search_question,
+                 'search_plan': passages[0].search_plan if passages else None},
                 {'role': 'assistant', 'content': answer, 'sources': sources},
             ])
             st.session_state.messages = st.session_state.messages[-40:]

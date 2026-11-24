@@ -65,6 +65,21 @@ def ask(question, passages, api_key, history=(), session=None):
     if not passages:
         return NO_MATCH_REPLY, None
     messages = build_messages(question, passages, history)
+    answer, model = complete(messages, keys, session=session)
+    answer = clean_answer(answer)
+    if not answer:
+        raise ChatError('The model returned an empty response. Please try again.')
+    return answer, model
+
+
+def complete(messages, api_keys, session=None, max_tokens=1200, response_format=None, models=None):
+    keys = [api_keys] if isinstance(api_keys, str) else api_keys
+    keys = list(dict.fromkeys(key.strip() for key in keys if isinstance(key, str) and key.strip()))
+    if not keys:
+        raise ChatError('Chat is not configured yet.')
+    model_ids = models or [FREE_MODEL, *FREE_FALLBACKS]
+    if not all(isinstance(model, str) and model.endswith(':free') for model in model_ids):
+        raise ChatError('Only free models are enabled.')
     client = session or requests
     error_message = 'Chat has reached a rate limit. Please try again shortly.'
     remaining = keys.copy()
@@ -73,17 +88,21 @@ def ask(question, passages, api_key, history=(), session=None):
         if not key:
             raise ChatError(error_message)
         remaining.remove(key)
+        payload = {
+            'models': model_ids, 'route': 'fallback',
+            'messages': messages, 'temperature': 0.2,
+            'max_tokens': max_tokens, 'reasoning': {'enabled': False},
+            'provider': {'max_price': {'prompt': 0, 'completion': 0}},
+        }
+        if response_format:
+            payload['response_format'] = response_format
+            payload['provider']['require_parameters'] = True
+            payload.pop('reasoning')
         try:
             response = client.post(
                 API_URL,
                 headers={'Authorization': f'Bearer {key}', 'X-Title': 'Property Desk'},
-                json={
-                    'model': FREE_MODEL, 'models': FREE_FALLBACKS,
-                    'messages': messages, 'temperature': 0.2,
-                    'max_tokens': 1200,
-                    'reasoning': {'enabled': False},
-                    'provider': {'max_price': {'prompt': 0, 'completion': 0}},
-                },
+                json=payload,
                 timeout=(10, 60),
             )
         except requests.RequestException as error:
@@ -102,9 +121,6 @@ def ask(question, passages, api_key, history=(), session=None):
         answer = data['choices'][0]['message']['content']
         if not isinstance(answer, str) or not answer.strip():
             raise ValueError('Empty answer')
-        answer = clean_answer(answer)
-        if not answer:
-            raise ValueError('Empty answer')
-        return answer, data.get('model', FREE_MODEL)
+        return answer, data.get('model', model_ids[0])
     except (KeyError, IndexError, TypeError, ValueError) as error:
         raise ChatError('The model returned an empty response. Please try again.') from error

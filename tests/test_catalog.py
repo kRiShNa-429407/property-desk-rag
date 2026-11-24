@@ -7,6 +7,7 @@ from unittest.mock import Mock
 from catalog import extra_fields, query_catalog
 from llm import ask
 from rag import Passage
+from search_questions import resolve_search_question
 from mongo_fixtures import MongoCase
 
 
@@ -89,6 +90,77 @@ class CatalogTests(MongoCase):
         self.assertEqual(extra_fields('Bedrooms: Not specified\nPurpose: sale'), (None, '', None, ''))
         self.assertEqual(extra_fields('Purpose: sale\nListed sale price: SAR 650000.50\nBedrooms: 3')[:3],
                          (650000.5, 'SAR', 3))
+
+    def test_natural_bedroom_wording(self):
+        for phrase in ['at least four', 'minimum 4', 'no fewer than four', 'a minimum of four']:
+            with self.subTest(phrase=phrase):
+                result = query_catalog(self.collection, f'How many villas are available for sale in Riyadh under SAR 2 million with {phrase} bedrooms?')
+                self.assertIn('**1 villa listings', result[0]['answer'])
+        result = query_catalog(self.collection, 'How many apartments for sale in Riyadh with no more than three bedrooms?')
+        self.assertIn('**4 apartment listings', result[0]['answer'])
+
+    def test_city_comparison_counts_and_difference(self):
+        result = query_catalog(self.collection, 'Which has more properties for sale, Riyadh or Jeddah? Give the count for each city and the difference.')
+        self.assertIn('| Riyadh | 6 |', result[0]['answer'])
+        self.assertIn('| Jeddah | 1 |', result[0]['answer'])
+        self.assertIn('Riyadh has 5 more listings', result[0]['answer'])
+        result = query_catalog(self.collection, 'Which has more properties for sale, Riyadh or Jeddah? Give the counts and difference.')
+        self.assertIn('| Riyadh | 6 |', result[0]['answer'])
+        self.assertIn('| Jeddah | 1 |', result[0]['answer'])
+        self.assertIn('Riyadh has 5 more listings', result[0]['answer'])
+
+    def test_follow_up_uses_all_filters_and_can_change_them(self):
+        history = [{'role': 'user', 'content': 'Show villas for sale in Riyadh under 2m'}]
+        resolved = resolve_search_question('Only those with at least five bedrooms', history)
+        result = query_catalog(self.collection, resolved)
+        self.assertTrue(result[1]['url'].endswith('home-5'))
+        history.append({'role': 'user', 'content': 'Only those with at least five bedrooms', 'search_question': resolved})
+        resolved = resolve_search_question('Which is the cheapest? Give me its listing link.', history)
+        result = query_catalog(self.collection, resolved)
+        self.assertTrue(result[1]['url'].endswith('home-5'))
+        self.assertIn('[View listing]', result[0]['answer'])
+        history = [{'role': 'user', 'content': 'Show apartments for sale in Riyadh under 1m with 3 bedrooms'}]
+        resolved = resolve_search_question('Only those under 2m with at least four bedrooms', history)
+        result = query_catalog(self.collection, resolved)
+        self.assertEqual(len(result), 2)
+        self.assertTrue(result[1]['url'].endswith('home-3'))
+
+    def test_chat_retains_refined_search_and_clears_it_on_new_chat(self):
+        from streamlit.testing.v1 import AppTest
+        from unittest.mock import patch
+        with patch('rag.get_collection', return_value=self.collection), patch('dotenv.dotenv_values', return_value={}), patch('llm.requests.post') as post:
+            app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'app.py')).run(timeout=30)
+            for question in ['Show me villas for sale in Riyadh under SAR 2 million',
+                             'Only those with at least five bedrooms',
+                             'Which one is the cheapest? Give me its listing link.']:
+                app.chat_input[0].set_value(question).run(timeout=30)
+                self.assertEqual(len(app.exception), 0)
+                self.assertEqual(len(app.error), 0)
+            search = app.session_state.messages[-2]['search_question']
+            self.assertIn('riyadh', search)
+            self.assertIn('at least 5 bedrooms', search)
+            self.assertIn('under sar 2 million', search)
+            self.assertTrue(any('SAR 1,500,000' in message.value for message in app.markdown))
+            post.assert_not_called()
+            app.button[0].click().run(timeout=30)
+            self.assertEqual(app.session_state.messages, [])
+
+    def test_suspicious_prices_are_preserved_flagged_and_excluded_from_average(self):
+        row = self.collection.find_one({'price': 500000})
+        row['_id'] = 'property:unverified'
+        row['price'] = 437
+        row['url'] = 'https://wasalt.sa/en/property/sale/unverified'
+        self.collection.insert_one(row)
+        cheapest = query_catalog(self.collection, 'Show the five cheapest apartments for sale in Riyadh')
+        self.assertIn('SAR 437 (unverified; unusually low)', cheapest[0]['answer'])
+        self.assertEqual(len(cheapest) - 1, 5)
+        average = query_catalog(self.collection, 'What is the average price of apartments for sale in Riyadh?')
+        self.assertIn('SAR 825,000.00', average[0]['answer'])
+        self.assertIn('Excluded 1 unusually low sale prices', average[0]['answer'])
+        self.assertEqual(self.collection.find_one({'_id': row['_id']})['price'], 437)
+        self.collection.delete_many({'_id': {'$ne': row['_id']}})
+        average = query_catalog(self.collection, 'What is the average price of apartments for sale in Riyadh?')
+        self.assertIn("can't calculate a reliable average", average[0]['answer'])
 
     def test_reimport_preserves_all_original_listing_fields(self):
         before = {row['_id']: row['raw'] for row in self.collection.find()}

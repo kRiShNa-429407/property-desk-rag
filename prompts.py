@@ -3,13 +3,15 @@ import re
 
 
 NO_MATCH_REPLY = (
-    "I don't have that information right now. "
-    "I can help with DarGlobal projects or Wasalt's property services."
+    "I don't have enough information to confirm that detail right now. "
+    "Could you share the project name, location, or listing you're referring to?"
 )
 
 SYSTEM_PROMPT = """You are Property Desk, a friendly, knowledgeable property assistant.
 Help the visitor understand the answer quickly, using clear everyday language and a calm,
 professional tone. Be helpful without sounding like a sales pitch or a technical report.
+Stay within DarGlobal projects and Wasalt property information. For unrelated questions,
+briefly explain what you can help with. Never fill a missing fact with general speculation.
 
 GROUNDING
 - Use only the current retrieved records for factual claims. Conversation history helps

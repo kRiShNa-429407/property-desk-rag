@@ -13,6 +13,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 from catalog import query_catalog
 from mongo_store import get_collection
 from wasalt import search_listings
+from llm import ChatError
+from search_plan import InvalidPlan, execute_plan, interpret_question, limitation_reply
 
 DATA_DIR = Path(__file__).parent / 'data'
 SEPARATOR = '\n' + '=' * 72 + '\n'
@@ -26,6 +28,7 @@ class Passage:
     collected: str
     text: str
     answer: str = ''
+    search_plan: dict | None = None
 
 
 def knowledge_files():
@@ -157,7 +160,7 @@ class Retriever:
             normalize(f'{item.source} {item.title} {item.text}') for item in passages
         ])
 
-    def search(self, question, source='All sources', limit=5):
+    def search(self, question, source='All sources', limit=5, api_keys=None, history=(), original_question=None, previous_search=None):
         normalized = normalize(question)
         if source == 'All sources':
             mentions_dar = bool(re.search(r'\b(aida|darglobal)\b', normalized))
@@ -166,7 +169,24 @@ class Retriever:
                 source = 'DarGlobal'
             elif mentions_wasalt and not mentions_dar:
                 source = 'Wasalt'
-        if source != 'DarGlobal':
+        plan = None
+        has_keys = bool(api_keys.strip()) if isinstance(api_keys, str) else any(isinstance(key, str) and key.strip() for key in (api_keys or []))
+        if source != 'DarGlobal' and has_keys:
+            try:
+                plan = interpret_question(original_question or question, history, api_keys, previous_search)
+            except ChatError:
+                return [Passage('Wasalt', 'Search unavailable', '', '', '',
+                                "I'm having trouble checking that right now. Please try again shortly.")]
+            except InvalidPlan:
+                return [Passage('Wasalt', 'Search clarification', '', '', '',
+                                "I couldn't reliably interpret that request right now. Please try again, or specify the city, property type and budget.")]
+            if plan['intent'] == 'search':
+                matches = execute_plan(get_collection(), plan)
+                return [Passage('Wasalt', row['title'], row['url'], 'unknown', row['text'], row.get('answer', ''), plan)
+                        for row in matches]
+            if plan['intent'] != 'knowledge':
+                return [Passage('Wasalt', 'Search clarification', '', '', '', limitation_reply(plan))]
+        if source != 'DarGlobal' and plan is None:
             matches = query_catalog(get_collection(), question, limit)
             if matches:
                 return [Passage('Wasalt', row['title'], row['url'], 'unknown', row['text'], row.get('answer', ''))
@@ -182,7 +202,7 @@ class Retriever:
             results.append(passage)
             if len(results) == limit:
                 break
-        if source != 'DarGlobal':
+        if source != 'DarGlobal' and plan is None:
             ignored = set(ENGLISH_STOP_WORDS) | {'wasalt', 'show', 'find', 'available', 'property',
                                                 'properties', 'list', 'listing', 'listings', 'please', 'want'}
             terms = [word for word in re.findall(r'\w+', normalized) if word not in ignored]
